@@ -310,7 +310,12 @@ document.addEventListener('DOMContentLoaded', async function() {
     // createElement so they execute, awaiting onload for src scripts to
     // preserve ordering (React before ReactDOM before Babel before text/babel).
     const doc = new DOMParser().parseFromString(template, 'text/html');
+    const __icons=[...document.querySelectorAll('link[rel~="icon"],link[rel="apple-touch-icon"]')].map(n=>n.cloneNode());
+    const __title=document.title;
     document.documentElement.replaceWith(doc.documentElement);
+    document.querySelectorAll('link[rel~="icon"]').forEach(n=>n.remove());
+    __icons.forEach(n=>document.head.appendChild(n));
+    document.title=__title;
 
     // Resolve page-frame markers: mint this document's own blob for each
     // framed page — from local text when this is the root, otherwise by
