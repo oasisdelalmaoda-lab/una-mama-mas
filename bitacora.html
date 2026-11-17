@@ -211,7 +211,7 @@
   };
   var PASOS = [['rutina_inicio','Empezó la rutina'],['ultima_toma','Última toma del día'],['noche_acosto','La acosté'],['noche_durmio','Se durmió']];
 
-  var D = null, fecha = null, E = null, paso = 'siestas', tGuardar = null, enviando = false;
+  var D = null, fecha = null, E = null, tocados = {}, paso = 'siestas', tGuardar = null, enviando = false;
 
   // ── utilidades de hora (Colombia, UTC-5) ──
   function ahora() { var d = new Date(Date.now() - 5 * 3600e3); return d.toISOString().slice(11, 16); }
@@ -252,15 +252,23 @@
     v.siestas = (v.siestas || []).map(function (s) { return { acosto: hhmm(s.acosto), durmio: hhmm(s.durmio), desperto: hhmm(s.desperto), humor: s.humor || null }; });
     v.despertares_lista = (v.despertares_lista || []).map(function (x) { return { hora: hhmm(x.hora), volvio: hhmm(x.volvio), acciones: x.acciones || [] }; });
     v.tomas = v.tomas || 0;
-    try { var bk = JSON.parse(localStorage.getItem('umm-diario-' + T + '-' + f) || 'null'); if (bk && bk._t > Date.parse((e && e.actualizado_en) || 0)) { delete bk._t; v = Object.assign(v, bk); } } catch (x) {}
+    // Lo que no alcanzó a guardarse en este celular (sin señal) se recupera: solo lo que se tocó aquí.
+    tocados = {};
+    try { var bk = JSON.parse(localStorage.getItem('umm-diario-' + T + '-' + f) || 'null');
+      if (bk && bk._t > Date.parse((e && e.actualizado_en) || 0) && bk._tocados) Object.keys(bk._tocados).forEach(function (k) { if (k in bk) { v[k] = bk[k]; tocados[k] = true; } }); } catch (x) {}
     E = v; pintarTodo();
   }
 
+  // Solo se manda lo que se tocó en ESTE celular: si mamá y papá llenan el mismo día
+  // desde dos teléfonos, cada uno guarda su parte sin borrar la del otro.
   function guardar(enviar) {
     clearTimeout(tGuardar);
-    try { localStorage.setItem('umm-diario-' + T + '-' + fecha, JSON.stringify(Object.assign({ _t: Date.now() }, E))); } catch (x) {}
+    var envio = tocados; tocados = {};
+    var cuerpo = { t: T, fecha: fecha, enviar: !!enviar };
+    Object.keys(envio).forEach(function (k) { cuerpo[k] = E[k]; });
+    try { var bk = { _t: Date.now(), _tocados: envio }; Object.keys(envio).forEach(function (k) { bk[k] = E[k]; });
+      localStorage.setItem('umm-diario-' + T + '-' + fecha, JSON.stringify(bk)); } catch (x) {}
     $('guardado').textContent = 'Guardando…';
-    var cuerpo = Object.assign({ t: T, fecha: fecha, enviar: !!enviar }, E);
     return fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo) })
       .then(function (r) { return r.json(); })
       .then(function (d) {
@@ -271,9 +279,9 @@
         $('guardado').textContent = 'Guardado ✓'; pintarCamino(); pintarBotonEnviar();
         return d.guardada;
       })
-      .catch(function (e) { $('guardado').textContent = 'Sin conexión: quedó guardado en este celular'; throw e; });
+      .catch(function (e) { Object.keys(envio).forEach(function (k) { tocados[k] = true; }); $('guardado').textContent = 'Sin conexión: quedó guardado en este celular'; throw e; });
   }
-  function cambio() { clearTimeout(tGuardar); $('guardado').textContent = ''; tGuardar = setTimeout(function () { guardar(false).catch(function () {}); }, 1200); pintarResumenes(); }
+  function cambio() { for (var i = 0; i < arguments.length; i++) tocados[arguments[i]] = true; clearTimeout(tGuardar); $('guardado').textContent = ''; tGuardar = setTimeout(function () { guardar(false).catch(function () {}); }, 1200); pintarResumenes(); }
 
   // ── pintar ──
   function chips(cont, opciones, sel, multi, alCambiar) {
@@ -313,15 +321,15 @@
       var m = entre(s.durmio || s.acosto, s.desperto);
       d.innerHTML = '<div class="fila" style="margin-bottom:10px"><h3>Siesta ' + (i + 1) + '</h3>' + (m != null ? '<span class="dur">' + dur(m) + ' dormida</span>' : '') + '</div>';
       var g = document.createElement('div'); g.className = 'tres';
-      g.appendChild(hora('La acosté', s.acosto, function (v) { s.acosto = v; cambio(); }));
-      g.appendChild(hora('Se durmió', s.durmio, function (v) { s.durmio = v; cambio(); }));
-      g.appendChild(hora('Despertó', s.desperto, function (v) { s.desperto = v; cambio(); pintarSiestas(); }));
+      g.appendChild(hora('La acosté', s.acosto, function (v) { s.acosto = v; cambio('siestas'); }));
+      g.appendChild(hora('Se durmió', s.durmio, function (v) { s.durmio = v; cambio('siestas'); }));
+      g.appendChild(hora('Despertó', s.desperto, function (v) { s.desperto = v; cambio('siestas'); pintarSiestas(); }));
       d.appendChild(g);
       var h = document.createElement('h3'); h.textContent = '¿Cómo se despertó?'; h.style.margin = '12px 0 8px'; d.appendChild(h);
       var cc = document.createElement('div'); cc.className = 'caras'; d.appendChild(cc);
-      caras(cc, s.humor, function (v) { s.humor = v; cambio(); });
+      caras(cc, s.humor, function (v) { s.humor = v; cambio('siestas'); });
       var q = document.createElement('button'); q.type = 'button'; q.className = 'quitar'; q.textContent = 'Quitar siesta';
-      q.onclick = function () { E.siestas.splice(i, 1); cambio(); pintarSiestas(); pintarBotones(); };
+      q.onclick = function () { E.siestas.splice(i, 1); cambio('siestas'); pintarSiestas(); pintarBotones(); };
       d.appendChild(q); var cl = document.createElement('div'); cl.style.clear = 'both'; d.appendChild(cl);
       c.appendChild(d);
     });
@@ -333,8 +341,8 @@
       d.innerHTML = '<div class="fila"><h3>' + p[1] + '</h3></div>';
       var b = document.createElement('button'); b.type = 'button'; b.className = 'ahora'; b.textContent = 'Ahora';
       d.firstChild.appendChild(b);
-      var w = hora('Hora', E[p[0]], function (v) { E[p[0]] = v; cambio(); tardo(); }); w.style.marginTop = '8px'; d.appendChild(w);
-      b.onclick = function () { E[p[0]] = ahora(); w.querySelector('input').value = E[p[0]]; cambio(); tardo(); };
+      var w = hora('Hora', E[p[0]], function (v) { E[p[0]] = v; cambio(p[0]); tardo(); }); w.style.marginTop = '8px'; d.appendChild(w);
+      b.onclick = function () { E[p[0]] = ahora(); w.querySelector('input').value = E[p[0]]; cambio(p[0]); tardo(); };
       if (p[0] === 'noche_durmio') { var t = document.createElement('p'); t.className = 'nota'; t.id = 'tardo'; t.style.margin = '8px 0 0'; d.appendChild(t); }
       c.appendChild(d);
     });
@@ -348,18 +356,18 @@
       var m = entre(x.hora, x.volvio);
       d.innerHTML = '<div class="fila" style="margin-bottom:10px"><h3>Despertar ' + (i + 1) + '</h3>' + (m != null ? '<span class="dur">' + dur(m) + '</span>' : '') + '</div>';
       var g = document.createElement('div'); g.className = 'dos';
-      g.appendChild(hora('Se despertó', x.hora, function (v) { x.hora = v; cambio(); }));
-      g.appendChild(hora('Volvió a dormir', x.volvio, function (v) { x.volvio = v; cambio(); pintarDesp(); }));
+      g.appendChild(hora('Se despertó', x.hora, function (v) { x.hora = v; cambio('despertares_lista'); }));
+      g.appendChild(hora('Volvió a dormir', x.volvio, function (v) { x.volvio = v; cambio('despertares_lista'); pintarDesp(); }));
       d.appendChild(g);
       var h = document.createElement('h3'); h.textContent = '¿Qué hiciste?'; h.style.margin = '12px 0 8px'; d.appendChild(h);
       var cc = document.createElement('div'); cc.className = 'chips'; d.appendChild(cc);
       chips(cc, OPC.acciones, x.acciones, true, function (sel, o, puso) {
         if (o === 'Pecho' || o === 'Tetero') { var otra = o === 'Pecho' ? 'Tetero' : 'Pecho';
-          if (puso && sel.indexOf(otra) < 0) E.tomas++; if (!puso && sel.indexOf(otra) < 0 && E.tomas > 0) E.tomas--; $('tomas').textContent = E.tomas; }
-        cambio();
+          if (puso && sel.indexOf(otra) < 0) E.tomas++; if (!puso && sel.indexOf(otra) < 0 && E.tomas > 0) E.tomas--; $('tomas').textContent = E.tomas; cambio('tomas'); }
+        cambio('despertares_lista');
       });
       var q = document.createElement('button'); q.type = 'button'; q.className = 'quitar'; q.textContent = 'Quitar despertar';
-      q.onclick = function () { E.despertares_lista.splice(i, 1); cambio(); pintarDesp(); pintarBotones(); };
+      q.onclick = function () { E.despertares_lista.splice(i, 1); cambio('despertares_lista'); pintarDesp(); pintarBotones(); };
       d.appendChild(q); var cl = document.createElement('div'); cl.style.clear = 'both'; d.appendChild(cl);
       c.appendChild(d);
     });
@@ -417,9 +425,9 @@
     $('planPill').textContent = D.producto + ' · día ' + (f ? f.dia : '') + ' de ' + D.dias;
     $('diaTxt').textContent = 'Diario del ' + fechaTxt(fecha) + (E.enviada_en ? ' · enviado' : '');
     qa('[data-campo]').forEach(function (i) { i.value = E[i.getAttribute('data-campo')] || ''; });
-    qa('[data-unico]').forEach(function (c) { var k = c.getAttribute('data-unico'); chips(c, OPC[k], E[k], false, function (v) { E[k] = v; cambio(); }); });
-    qa('[data-multi]').forEach(function (c) { var k = c.getAttribute('data-multi'); chips(c, OPC[k], E[k], true, function () { cambio(); }); });
-    qa('[data-cara]').forEach(function (c) { var k = c.getAttribute('data-cara'); caras(c, E[k], function (v) { E[k] = v; cambio(); }); });
+    qa('[data-unico]').forEach(function (c) { var k = c.getAttribute('data-unico'); chips(c, OPC[k], E[k], false, function (v) { E[k] = v; cambio(k); }); });
+    qa('[data-multi]').forEach(function (c) { var k = c.getAttribute('data-multi'); chips(c, OPC[k], E[k], true, function () { cambio(k); }); });
+    qa('[data-cara]').forEach(function (c) { var k = c.getAttribute('data-cara'); caras(c, E[k], function (v) { E[k] = v; cambio(k); }); });
     $('tomas').textContent = E.tomas;
     pintarSiestas(); pintarRutina(); pintarDesp(); pintarBotones(); pintarResumenes(); pintarCamino(); pintarBotonEnviar();
     var dd = $('dias'); dd.innerHTML = '';
@@ -436,24 +444,24 @@
 
   // ── acciones ──
   qa('#nav button').forEach(function (b) { b.onclick = function () { irA(b.getAttribute('data-p')); }; });
-  qa('[data-campo]').forEach(function (i) { i.oninput = function () { E[i.getAttribute('data-campo')] = i.value; cambio(); }; });
-  qa('[data-ahora]').forEach(function (b) { b.onclick = function () { var k = b.getAttribute('data-ahora'); E[k] = ahora(); qa('[data-campo="' + k + '"]').forEach(function (i) { i.value = E[k]; }); cambio(); }; });
+  qa('[data-campo]').forEach(function (i) { i.oninput = function () { E[i.getAttribute('data-campo')] = i.value; cambio(i.getAttribute('data-campo')); }; });
+  qa('[data-ahora]').forEach(function (b) { b.onclick = function () { var k = b.getAttribute('data-ahora'); E[k] = ahora(); qa('[data-campo="' + k + '"]').forEach(function (i) { i.value = E[k]; }); cambio(k); }; });
   $('btnSiesta').onclick = function () {
     var u = E.siestas[E.siestas.length - 1], h = ahora();
     if (u && u.acosto && !u.durmio && !u.desperto) u.durmio = h;
     else if (u && (u.durmio || u.acosto) && !u.desperto) u.desperto = h;
     else E.siestas.push({ acosto: h, durmio: '', desperto: '', humor: null });
-    cambio(); pintarSiestas(); pintarBotones();
+    cambio('siestas'); pintarSiestas(); pintarBotones();
   };
   $('masSiesta').onclick = function () { E.siestas.push({ acosto: '', durmio: '', desperto: '', humor: null }); pintarSiestas(); pintarBotones(); };
   $('btnDesp').onclick = function () {
     var x = E.despertares_lista[E.despertares_lista.length - 1], h = ahora();
     if (x && x.hora && !x.volvio) x.volvio = h; else E.despertares_lista.push({ hora: h, volvio: '', acciones: [] });
-    cambio(); pintarDesp(); pintarBotones();
+    cambio('despertares_lista'); pintarDesp(); pintarBotones();
   };
   $('masDesp').onclick = function () { E.despertares_lista.push({ hora: '', volvio: '', acciones: [] }); pintarDesp(); pintarBotones(); };
-  $('tomaMas').onclick = function () { E.tomas = Math.min(30, E.tomas + 1); $('tomas').textContent = E.tomas; cambio(); };
-  $('tomaMenos').onclick = function () { E.tomas = Math.max(0, E.tomas - 1); $('tomas').textContent = E.tomas; cambio(); };
+  $('tomaMas').onclick = function () { E.tomas = Math.min(30, E.tomas + 1); $('tomas').textContent = E.tomas; cambio('tomas'); };
+  $('tomaMenos').onclick = function () { E.tomas = Math.max(0, E.tomas - 1); $('tomas').textContent = E.tomas; cambio('tomas'); };
   $('cambiarDia').onclick = function () { $('dias').hidden = !$('dias').hidden; };
   $('btnEnviar').onclick = function () {
     if (enviando) return; enviando = true; $('err').textContent = ''; $('btnEnviar').disabled = true;
