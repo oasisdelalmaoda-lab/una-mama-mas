@@ -40,7 +40,7 @@
   <div id="cerrado" class="cerrado" hidden>
     <h1 id="motivo">Este enlace de pago está cerrado.</h1>
     <p>Si quieres este producto, escríbenos.</p>
-    <p><a href="https://wa.me/573165055231?text=Hola%20Mariana%2C%20quiero%20informaci%C3%B3n%20de%20un%20producto">Hablar por WhatsApp</a></p>
+    <p><a href="https://wa.me/573165055231?text=Hola%20Mari%2C%20quiero%20informaci%C3%B3n%20de%20un%20producto">Hablar por WhatsApp</a></p>
   </div>
 
   <form id="form" hidden novalidate>
@@ -88,7 +88,9 @@
   else fetch(API + '?p=' + encodeURIComponent(slug)).then(function (r) { return r.json(); }).then(function (d) {
     if (!d || !d.abierto) return cerrar(d && (d.motivo || d.error));
     $('producto').textContent = d.producto;
-    $('precio').textContent = '$' + Math.round(d.valor).toLocaleString('es-CO') + ' COP';
+    $('precio').textContent = d.moneda === 'USD'
+      ? 'USD ' + Number(d.valor).toLocaleString('en-US', { minimumFractionDigits: Number(d.valor) % 1 ? 2 : 0, maximumFractionDigits: 2 }) + ' · dólares'
+      : '$' + Math.round(d.valor).toLocaleString('es-CO') + ' COP';
     $('vence').textContent = d.hasta ? 'Disponible hasta el ' + fechaHora(d.hasta) : '';
     if (d.aviso) { $('aviso').textContent = d.aviso; $('aviso').hidden = false; }
     document.title = d.producto + ' · Una Mamá Más';
