@@ -82,6 +82,13 @@
   body.oscuro .nav button[aria-current=page]{background:#3d2f3e}
   .guardado{font-size:11.5px;color:var(--suave);text-align:right;min-height:16px}
   .contador{display:flex;align-items:center;gap:14px}
+  .toma{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--linea)}
+  .toma:first-of-type{border-top:0}
+  .toma input[type=time]{width:auto;flex:none;min-width:118px}
+  .toma .quitar{float:none;margin:0 0 0 auto}
+  .pend{display:flex;gap:10px;align-items:center;justify-content:space-between;background:#fbe9d8;border-radius:16px;padding:12px 14px;margin:0 0 12px;font-size:14px}
+  .pend button{font:inherit;font-weight:600;font-size:13.5px;border:0;border-radius:999px;padding:8px 12px;background:var(--coral);color:#fff;cursor:pointer;flex:none}
+  body.oscuro .pend{background:#3a2d3b}
   .contador button{font:inherit;font-size:20px;width:40px;height:40px;border-radius:50%;border:1.5px solid var(--linea);background:var(--chip);color:var(--tinta);cursor:pointer}
   .contador output{font-size:22px;font-weight:700;min-width:24px;text-align:center}
   .err{color:#c0392b;font-weight:600;font-size:14px;margin:0 0 8px}
@@ -115,15 +122,18 @@
     </div>
     <div class="chips" id="dias" hidden style="margin:8px 0 0"></div>
     <div class="guardado" id="guardado" aria-live="polite"></div>
+    <div class="pend" id="pendAyer" hidden><span id="pendAyerTxt"></span><button type="button" id="pendAyerBtn">Revisar y enviar</button></div>
 
     <!-- SIESTAS -->
     <section id="p-siestas">
+      <h2>🌅 Buenos días</h2>
+      <div class="card">
+        <div class="fila"><h3>¿A qué hora se despertó hoy?</h3><button type="button" class="ahora" data-ahora="despertar">Ahora</button></div>
+        <input type="time" data-campo="despertar" aria-label="Hora en que se despertó hoy para empezar el día" style="margin-top:10px">
+        <p class="nota" style="margin:8px 0 0">Con esta hora empieza el día y se cierra la noche de ayer.</p>
+      </div>
       <h2>☀️ Siestas de hoy</h2>
       <p class="sub" id="resSiestas"></p>
-      <div class="card">
-        <div class="fila"><h3>¿A qué hora se despertó en la mañana?</h3><button type="button" class="ahora" data-ahora="despertar">Ahora</button></div>
-        <input type="time" data-campo="despertar" aria-label="Hora en que se despertó en la mañana" style="margin-top:10px">
-      </div>
       <button type="button" class="grande" id="btnSiesta"></button>
       <p class="nota centro" style="margin:0 0 12px">La hora queda guardada sola. Si se te pasó, la corriges abajo.</p>
       <div class="card"><h3 class="nom24"></h3><div class="linea24"></div><div class="ejes"><span>6 a. m.</span><span>12 m.</span><span>6 p. m.</span><span>12 a. m.</span><span>6 a. m.</span></div>
@@ -151,25 +161,19 @@
       <div id="despertares"></div>
       <button type="button" class="mas" id="masDesp">+ Agregar un despertar a mano</button>
       <div class="card">
-        <h3 id="lblTomas" style="margin-bottom:10px">Tomas nocturnas</h3>
-        <div class="contador" role="group" aria-labelledby="lblTomas">
-          <button type="button" id="tomaMenos" aria-label="Una toma menos">−</button>
-          <output id="tomas" aria-live="polite">0</output>
-          <button type="button" id="tomaMas" aria-label="Una toma más">+</button>
-        </div>
-        <p class="nota" style="margin:8px 0 0">Si eliges «Pecho» o «Tetero» en un despertar, se suma sola.</p>
+        <div class="fila"><h3 id="lblTomas">Tomas nocturnas</h3><span class="dur" id="tomas">0</span></div>
+        <div id="tomasLista" role="group" aria-labelledby="lblTomas" style="margin-top:6px"></div>
+        <button type="button" class="mas" id="tomaMas" style="margin:8px 0 0">+ Anotar una toma (ahora)</button>
+        <p class="nota" style="margin:8px 0 0">Si eliges «Pecho» o «Tetero» en un despertar, la toma se anota sola con esa hora.</p>
       </div>
     </section>
 
     <!-- ENVIAR -->
     <section id="p-enviar" hidden>
-      <h2>🌅 Buenos días</h2>
+      <h2>💌 Enviar a Mari</h2>
       <p class="sub">Revisa y envía tu diario a Mari.</p>
-      <div class="card">
-        <div class="fila"><h3>¿A qué hora se despertó hoy?</h3><button type="button" class="ahora" data-ahora="fin_noche">Ahora</button></div>
-        <input type="time" data-campo="fin_noche" aria-label="Hora en que se despertó para empezar el día" style="margin-top:10px">
-      </div>
       <div class="stats" id="stats"></div>
+      <p class="nota" id="notaNoche" style="margin:-4px 2px 12px"></p>
       <div class="card"><h3 class="nom24"></h3><div class="linea24"></div><div class="ejes"><span>6 a. m.</span><span>12 m.</span><span>6 p. m.</span><span>12 a. m.</span><span>6 a. m.</span></div>
         <div class="ley"><span style="--c:var(--siesta)">Siestas</span><span style="--c:var(--noche)">Noche</span><span style="--c:var(--desp)">Despertares</span></div></div>
       <div class="card"><h3 style="margin-bottom:10px">¿Qué fue lo más retador?</h3><div class="chips" data-multi="retos"></div></div>
@@ -243,7 +247,7 @@
 
   // ── el diario del día ──
   function vacio() { return { despertar: '', siestas: [], comio: null, rutina_inicio: '', ultima_toma: '', noche_acosto: '', noche_durmio: '', humor_rutina: null, dormirse: null,
-    despertares_lista: [], tomas: 0, fin_noche: '', retos: [], logros_lista: [], nota: '', enviada_en: null }; }
+    despertares_lista: [], tomas: 0, tomas_lista: [], fin_noche: '', retos: [], logros_lista: [], nota: '', enviada_en: null }; }
   function cargarDia(f) {
     fecha = f;
     var e = (D.entradas || []).filter(function (x) { return x.fecha === f; })[0], v = vacio();
@@ -251,7 +255,10 @@
     ['despertar','rutina_inicio','ultima_toma','noche_acosto','noche_durmio','fin_noche'].forEach(function (k) { v[k] = hhmm(v[k]); });
     v.siestas = (v.siestas || []).map(function (s) { return { acosto: hhmm(s.acosto), durmio: hhmm(s.durmio), desperto: hhmm(s.desperto), humor: s.humor || null }; });
     v.despertares_lista = (v.despertares_lista || []).map(function (x) { return { hora: hhmm(x.hora), volvio: hhmm(x.volvio), acciones: x.acciones || [] }; });
-    v.tomas = v.tomas || 0;
+    v.tomas_lista = (v.tomas_lista || []).map(function (x) { return { hora: hhmm(x.hora), tipo: x.tipo || null }; });
+    // Diarios viejos: solo tenían el número de tomas, sin hora.
+    if (!v.tomas_lista.length && v.tomas > 0) for (var t = 0; t < v.tomas; t++) v.tomas_lista.push({ hora: '', tipo: null });
+    v.tomas = v.tomas_lista.length;
     // Lo que no alcanzó a guardarse en este celular (sin señal) se recupera: solo lo que se tocó aquí.
     tocados = {};
     try { var bk = JSON.parse(localStorage.getItem('umm-diario-' + T + '-' + f) || 'null');
@@ -276,7 +283,7 @@
         D.entradas = [d.guardada].concat((D.entradas || []).filter(function (x) { return x.fecha !== fecha; }));
         E.enviada_en = d.guardada.enviada_en;
         try { localStorage.removeItem('umm-diario-' + T + '-' + fecha); } catch (x) {}
-        $('guardado').textContent = 'Guardado ✓'; pintarCamino(); pintarBotonEnviar();
+        $('guardado').textContent = 'Guardado ✓'; pintarCamino(); pintarBotonEnviar(); pintarPendiente(); pintarResumenes();
         return d.guardada;
       })
       .catch(function (e) { Object.keys(envio).forEach(function (k) { tocados[k] = true; }); $('guardado').textContent = 'Sin conexión: quedó guardado en este celular'; throw e; });
@@ -362,8 +369,11 @@
       var h = document.createElement('h3'); h.textContent = '¿Qué hiciste?'; h.style.margin = '12px 0 8px'; d.appendChild(h);
       var cc = document.createElement('div'); cc.className = 'chips'; d.appendChild(cc);
       chips(cc, OPC.acciones, x.acciones, true, function (sel, o, puso) {
-        if (o === 'Pecho' || o === 'Tetero') { var otra = o === 'Pecho' ? 'Tetero' : 'Pecho';
-          if (puso && sel.indexOf(otra) < 0) E.tomas++; if (!puso && sel.indexOf(otra) < 0 && E.tomas > 0) E.tomas--; $('tomas').textContent = E.tomas; cambio('tomas'); }
+        if (o === 'Pecho' || o === 'Tetero') {
+          var h0 = x.hora || ahora(), ya = E.tomas_lista.filter(function (t) { return t.hora === h0; })[0];
+          if (puso) { if (ya) ya.tipo = o; else E.tomas_lista.push({ hora: h0, tipo: o }); }
+          else if (ya && ya.tipo === o) E.tomas_lista.splice(E.tomas_lista.indexOf(ya), 1);
+          ordenarTomas(); cambio('tomas_lista'); pintarTomas(); }
         cambio('despertares_lista');
       });
       var q = document.createElement('button'); q.type = 'button'; q.className = 'quitar'; q.textContent = 'Quitar despertar';
@@ -373,6 +383,27 @@
     });
   }
 
+  function ordenarTomas() {
+    // Orden de la noche: de la tarde a la madrugada (las de 6 p. m. en adelante van primero).
+    var k = function (t) { var m = min(t.hora); return m == null ? 9999 : (m + 1440 - 1080) % 1440; };
+    E.tomas_lista.sort(function (a, b) { return k(a) - k(b); }); E.tomas = E.tomas_lista.length;
+  }
+  function pintarTomas() {
+    var c = $('tomasLista'); c.innerHTML = ''; E.tomas = E.tomas_lista.length;
+    $('tomas').textContent = E.tomas + (E.tomas === 1 ? ' toma' : ' tomas');
+    E.tomas_lista.forEach(function (t, i) {
+      var d = document.createElement('div'); d.className = 'toma';
+      var lb = document.createElement('b'); lb.textContent = (i + 1) + '.'; lb.style.minWidth = '18px'; d.appendChild(lb);
+      var inp = document.createElement('input'); inp.type = 'time'; inp.value = t.hora || ''; inp.setAttribute('aria-label', 'Hora de la toma ' + (i + 1));
+      inp.onchange = function () { t.hora = inp.value; ordenarTomas(); cambio('tomas_lista'); pintarTomas(); };
+      d.appendChild(inp);
+      var cc = document.createElement('div'); cc.className = 'chips'; cc.style.margin = '0'; d.appendChild(cc);
+      chips(cc, ['Pecho', 'Tetero'], t.tipo, false, function (v) { t.tipo = v; cambio('tomas_lista'); });
+      var q = document.createElement('button'); q.type = 'button'; q.className = 'quitar'; q.textContent = 'Quitar';
+      q.onclick = function () { E.tomas_lista.splice(i, 1); cambio('tomas_lista'); pintarTomas(); };
+      d.appendChild(q); c.appendChild(d);
+    });
+  }
   function pintarBotones() {
     var u = E.siestas[E.siestas.length - 1], b = $('btnSiesta'), est;
     if (u && u.acosto && !u.durmio && !u.desperto) est = ['😌', 'Se durmió', 'Toca cuando se quede dormido'];
@@ -384,8 +415,13 @@
     bd.innerHTML = '<span class="ico" aria-hidden="true">' + ed[0] + '</span><b>' + ed[1] + '</b><span>' + ed[2] + '</span>';
   }
 
+  // La noche termina con la hora de despertar del día siguiente («Buenos días» de mañana).
+  function finNoche() {
+    var sig = masDias(fecha, 1), e = (D.entradas || []).filter(function (x) { return x.fecha === sig; })[0];
+    return (e && hhmm(e.despertar)) || E.fin_noche || '';
+  }
   function minutosNoche() {
-    var n = entre(E.noche_durmio, E.fin_noche); if (n == null) return null;
+    var n = entre(E.noche_durmio, finNoche()); if (n == null) return null;
     var desp = E.despertares_lista.reduce(function (a, x) { return a + (entre(x.hora, x.volvio) || 0); }, 0);
     return Math.max(0, n - desp);
   }
@@ -395,14 +431,16 @@
     var barras = [];
     var tramo = function (a, b, color) { var x = pos(a), y = pos(b); if (x == null || y == null) return; if (y < x) y = 100; barras.push('<i style="left:' + x + '%;width:' + Math.max(1, y - x) + '%;background:' + color + '"></i>'); };
     E.siestas.forEach(function (s) { tramo(s.durmio || s.acosto, s.desperto, 'var(--siesta)'); });
-    tramo(E.noche_durmio, E.fin_noche || '06:00', 'var(--noche)');
+    tramo(E.noche_durmio, finNoche() || '06:00', 'var(--noche)');
     E.despertares_lista.forEach(function (x) { var p = pos(x.hora); if (p != null) barras.push('<i style="left:' + p + '%;width:1.2%;background:var(--desp)"></i>'); });
     qa('.linea24').forEach(function (l) { l.innerHTML = barras.join(''); l.setAttribute('role', 'img'); l.setAttribute('aria-label', 'Línea de 24 horas con siestas, noche y despertares'); });
   }
   function pintarResumenes() {
     var ms = minutosSiestas(), mn = minutosNoche(), n = E.despertares_lista.length;
     $('resSiestas').textContent = (E.despertar ? 'Se despertó a las ' + bonita(E.despertar) + ' · ' : '') + E.siestas.length + (E.siestas.length === 1 ? ' siesta' : ' siestas') + (ms ? ' · ' + dur(ms) + ' de sueño de día' : '');
-    $('resMadrugada').textContent = n + (n === 1 ? ' despertar' : ' despertares') + ' · ' + E.tomas + (E.tomas === 1 ? ' toma nocturna' : ' tomas nocturnas');
+    var nt = E.tomas_lista.length;
+    $('resMadrugada').textContent = n + (n === 1 ? ' despertar' : ' despertares') + ' · ' + nt + (nt === 1 ? ' toma nocturna' : ' tomas nocturnas');
+    $('notaNoche').textContent = E.noche_durmio && !finNoche() ? 'Las horas de la noche se completan cuando anotes mañana a qué hora se despertó («Buenos días»).' : '';
     $('stats').innerHTML = '<div><b>' + (mn != null ? dur(mn) : '—') + '</b><span>de sueño de noche</span></div>' +
       '<div><b>' + (ms ? dur(ms) : '—') + '</b><span>en ' + E.siestas.length + (E.siestas.length === 1 ? ' siesta' : ' siestas') + '</span></div>' +
       '<div><b>' + n + '</b><span>' + (n === 1 ? 'despertar' : 'despertares') + '</span></div>' +
@@ -419,6 +457,13 @@
     for (var k = 1; k <= 7; k++) { var dia = sem * 7 + k; if (dia > D.dias) break; h += estrella(env[dia] ? 'lleno' : dia === diaSel ? 'hoy' : 'vacio', dia); }
     $('camino').innerHTML = h;
   }
+  // Si hoy ya empezó y el diario de ayer quedó sin enviar, se avisa arriba.
+  function pintarPendiente() {
+    var ayer = masDias(D.hoy, -1), e = (D.entradas || []).filter(function (x) { return x.fecha === ayer; })[0];
+    var ver = fecha === D.hoy && D.fechas.some(function (x) { return x.fecha === ayer; }) && e && !e.enviada_en;
+    $('pendAyer').hidden = !ver;
+    if (ver) $('pendAyerTxt').textContent = 'El diario de ayer (día ' + e.dia + ') no se ha enviado.';
+  }
   function pintarBotonEnviar() { $('btnEnviar').textContent = E.enviada_en ? 'Actualizar mi diario' : 'Enviar mi diario a Mari'; }
   function pintarTodo() {
     var f = D.fechas.filter(function (x) { return x.fecha === fecha; })[0];
@@ -428,8 +473,7 @@
     qa('[data-unico]').forEach(function (c) { var k = c.getAttribute('data-unico'); chips(c, OPC[k], E[k], false, function (v) { E[k] = v; cambio(k); }); });
     qa('[data-multi]').forEach(function (c) { var k = c.getAttribute('data-multi'); chips(c, OPC[k], E[k], true, function () { cambio(k); }); });
     qa('[data-cara]').forEach(function (c) { var k = c.getAttribute('data-cara'); caras(c, E[k], function (v) { E[k] = v; cambio(k); }); });
-    $('tomas').textContent = E.tomas;
-    pintarSiestas(); pintarRutina(); pintarDesp(); pintarBotones(); pintarResumenes(); pintarCamino(); pintarBotonEnviar();
+    pintarSiestas(); pintarRutina(); pintarDesp(); pintarTomas(); pintarBotones(); pintarResumenes(); pintarCamino(); pintarBotonEnviar(); pintarPendiente();
     var dd = $('dias'); dd.innerHTML = '';
     D.fechas.forEach(function (x) { var b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = (x.fecha === D.hoy ? 'Hoy' : fechaTxt(x.fecha)) + ' · día ' + x.dia;
       b.setAttribute('aria-pressed', x.fecha === fecha ? 'true' : 'false'); b.onclick = function () { dd.hidden = true; cargarDia(x.fecha); }; dd.appendChild(b); });
@@ -460,8 +504,8 @@
     cambio('despertares_lista'); pintarDesp(); pintarBotones();
   };
   $('masDesp').onclick = function () { E.despertares_lista.push({ hora: '', volvio: '', acciones: [] }); pintarDesp(); pintarBotones(); };
-  $('tomaMas').onclick = function () { E.tomas = Math.min(30, E.tomas + 1); $('tomas').textContent = E.tomas; cambio('tomas'); };
-  $('tomaMenos').onclick = function () { E.tomas = Math.max(0, E.tomas - 1); $('tomas').textContent = E.tomas; cambio('tomas'); };
+  $('tomaMas').onclick = function () { if (E.tomas_lista.length >= 20) return; E.tomas_lista.push({ hora: ahora(), tipo: null }); ordenarTomas(); cambio('tomas_lista'); pintarTomas(); };
+  $('pendAyerBtn').onclick = function () { cargarDia(masDias(D.hoy, -1)); irA('enviar'); };
   $('cambiarDia').onclick = function () { $('dias').hidden = !$('dias').hidden; };
   $('btnEnviar').onclick = function () {
     if (enviando) return; enviando = true; $('err').textContent = ''; $('btnEnviar').disabled = true;
@@ -491,15 +535,17 @@
       r.querySelector('span').textContent = resp.respuesta + (resp.ajuste ? ' · Ajuste: ' + resp.ajuste : '');
       $('respuesta').appendChild(r);
     }
-    // El diario va del despertar de un día al despertar del siguiente: antes del
-    // mediodía se sigue llenando el de ayer, salvo que ya esté enviado.
+    // El diario va del despertar de un día al despertar del siguiente. De madrugada
+    // (antes de las 5 a. m.) se sigue con el de ayer: los despertares son de esa noche.
+    // Desde las 5 a. m. abre el de hoy en «Buenos días»; si el de ayer quedó sin
+    // enviar, un aviso arriba lleva a enviarlo.
     var ayer = masDias(d.hoy, -1), eAyer = (d.entradas || []).filter(function (e) { return e.fecha === ayer; })[0];
     var hayAyer = d.fechas.some(function (x) { return x.fecha === ayer; }), hayHoy = d.fechas.some(function (x) { return x.fecha === d.hoy; });
-    var manana = new Date(Date.now() - 5 * 3600e3).getUTCHours() < 12;
-    var f = (manana && hayAyer && !(eAyer && eAyer.enviada_en)) ? ayer : (hayHoy ? d.hoy : d.fechas[0].fecha);
+    var madrugada = new Date(Date.now() - 5 * 3600e3).getUTCHours() < 5;
+    var f = (madrugada && hayAyer && !(eAyer && eAyer.enviada_en)) ? ayer : (hayHoy ? d.hoy : d.fechas[0].fecha);
     $('cargando').hidden = true; $('app').hidden = false; $('nav').hidden = false;
     cargarDia(f);
-    if (f === ayer && manana) irA('enviar');
+    if (f === ayer && madrugada) irA('madrugada');
   }).catch(function () { cerrar('No pudimos cargar tu diario. Revisa tu conexión e inténtalo de nuevo.'); });
 </script>
 </body>
